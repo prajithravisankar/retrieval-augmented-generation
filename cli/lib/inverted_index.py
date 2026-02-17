@@ -20,7 +20,7 @@ class InvertedIndex:
             # 3. Map Token -> Doc_ID (The Inversion)
             self.index[token].add(doc_id)
 
-    def get_document(self, term):
+    def get_documents(self, term):
         term = term.lower()
         if term in self.index:
             return sorted(list(self.index[term]))
@@ -28,12 +28,14 @@ class InvertedIndex:
 
     def build(self):
         with open("data/movies.json", "r") as f:
-            movies = json.load(f)
-            for movie in movies:
-                doc_id = movie["id"]
-                text = f"{movie['title']} {movie['description']}"
-                self.__add_document(doc_id, text)
-                self.docmap[doc_id] = movie
+            data = json.load(f)
+
+        # Access the list under the "movies" key
+        for movie in data["movies"]:
+            doc_id = movie["id"]
+            text = f"{movie['title']} {movie['description']}"
+            self.__add_document(doc_id, text)
+            self.docmap[doc_id] = movie
 
     def save(self):
         if not os.path.exists("cache"):

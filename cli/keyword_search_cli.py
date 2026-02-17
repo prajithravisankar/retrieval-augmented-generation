@@ -30,7 +30,7 @@ def main() -> None:
             print("Saving Index...")
             index.save()
 
-            docs = index.get_document("merida")
+            docs = index.get_documents("merida")
             if docs:
                 print(f"First document for token 'merida' = {docs[0]}")
             else:
