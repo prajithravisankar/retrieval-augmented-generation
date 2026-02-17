@@ -11,3 +11,6 @@ wheels/
 
 # data files
 /data/
+cache/
+docmap.pkl
+index.pkl
