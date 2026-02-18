@@ -4,8 +4,8 @@ import argparse
 
 from lib.keyword_search import (
     bm25_idf_command,
-    bm25_search_command,
     bm25_tf_command,
+    bm25search_command,
     build_command,
     idf_command,
     search_command,
@@ -97,10 +97,10 @@ def main() -> None:
                 f"BM25 TF score of '{args.term}' in document '{args.doc_id}': {bm25tf:.2f}"
             )
         case "bm25search":
-            bm25search = bm25_search_command(args.query)
-            for i, (movie, score) in enumerate(bm25search, 1):
-                print(f"{i}. ({movie['id']}) {movie['title']} - Score: {score:.2f}")
-
+            print("Searching for:", args.query)
+            results = bm25search_command(args.query)
+            for i, res in enumerate(results, 1):
+                print(f"{i}. ({res['id']}) {res['title']} - Score: {res['score']:.2f}")
         case _:
             parser.print_help()
 
