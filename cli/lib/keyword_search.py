@@ -73,6 +73,11 @@ class InvertedIndex:
         term_doc_count = len(self.index[token])
         return math.log((doc_count + 1) / (term_doc_count + 1))
 
+    def get_tf_idf(self, doc_id: int, term: str) -> float:
+        tf = self.get_tf(doc_id, term)
+        idf = self.get_idf(term)
+        return tf * idf
+
 
 def build_command() -> None:
     idx = InvertedIndex()
@@ -134,3 +139,9 @@ def idf_command(term: str) -> float:
     idx = InvertedIndex()
     idx.load()
     return idx.get_idf(term)
+
+
+def tfidf_command(doc_id: int, term: str) -> float:
+    idx = InvertedIndex()
+    idx.load()
+    return idx.get_tf_idf(doc_id, term)
