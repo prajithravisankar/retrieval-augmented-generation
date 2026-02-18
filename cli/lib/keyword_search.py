@@ -78,6 +78,18 @@ class InvertedIndex:
         idf = self.get_idf(term)
         return tf * idf
 
+    def get_bm25_idf(self, term: str) -> float:
+        token = tokenize_text(term)
+        if len(token) != 1:
+            raise Exception("token length > 1")
+        target = token[0]
+        N = len(self.docmap)
+        df = len(self.index.get(target, set()))
+
+        numerator = N - df + 0.5
+        denominator = df + 0.5
+        return math.log((numerator / denominator) + 1)
+
 
 def build_command() -> None:
     idx = InvertedIndex()
@@ -145,3 +157,9 @@ def tfidf_command(doc_id: int, term: str) -> float:
     idx = InvertedIndex()
     idx.load()
     return idx.get_tf_idf(doc_id, term)
+
+
+def bm25_idf_command(term: str) -> float:
+    idx = InvertedIndex()
+    idx.load()
+    return idx.get_bm25_idf(term)
