@@ -4,6 +4,7 @@ import pickle
 import string
 from collections import Counter, defaultdict
 
+from lib.constants import BM25_K1
 from lib.search_utils import (
     CACHE_DIR,
     DEFAULT_SEARCH_LIMIT,
@@ -90,6 +91,11 @@ class InvertedIndex:
         denominator = df + 0.5
         return math.log((numerator / denominator) + 1)
 
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1):
+        tf = self.get_tf(doc_id, term)
+        saturated_tf_score = (tf * (k1 + 1)) / (tf + k1)
+        return saturated_tf_score
+
 
 def build_command() -> None:
     idx = InvertedIndex()
@@ -163,3 +169,9 @@ def bm25_idf_command(term: str) -> float:
     idx = InvertedIndex()
     idx.load()
     return idx.get_bm25_idf(term)
+
+
+def bm25_tf_command(doc_id, term, k1=BM25_K1):
+    idx = InvertedIndex()
+    idx.load()
+    return idx.get_bm25_tf(doc_id, term, k1)
