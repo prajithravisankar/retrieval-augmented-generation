@@ -7,11 +7,8 @@ class SemanticSearch:
 
     def generate_embedding(self, text):
         if not text or not text.strip():
-            raise ValueError("Text cannot be empty or just whitespace")
-        input = []
-        input.append(text)
-        embedding = self.model.encode(input)
-        return embedding[0]
+            raise ValueError("cannot generate embedding for empty text")
+        return self.model.encode([text])[0]
 
 
 def verify_model():
@@ -21,8 +18,8 @@ def verify_model():
 
 
 def embed_text(text):
-    semanticSearch = SemanticSearch()
-    embedding = semanticSearch.generate_embedding(text)
+    search_instance = SemanticSearch()
+    embedding = search_instance.generate_embedding(text)
     print(f"Text: {text}")
     print(f"First 3 dimensions: {embedding[:3]}")
     print(f"Dimensions: {embedding.shape[0]}")

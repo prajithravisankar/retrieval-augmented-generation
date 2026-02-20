@@ -7,14 +7,14 @@ from lib.semantic_search import embed_text, verify_model
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
-
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
     subparsers.add_parser("verify", help="Verify that the embedding model is loaded")
 
-    embed_parser = subparsers.add_parser(
-        "embed_text", help="Generate an embedding for text"
+    single_embed_parser = subparsers.add_parser(
+        "embed_text", help="Generate an embedding for a single text"
     )
-    embed_parser.add_argument("text", type=str, help="The text to embed")
+    single_embed_parser.add_argument("text", type=str, help="Text to embed")
 
     args = parser.parse_args()
 
