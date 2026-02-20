@@ -1,8 +1,11 @@
 import os
 
 import numpy as np
-from lib.search_utils import load_movies
 from sentence_transformers import SentenceTransformer
+
+from .search_utils import CACHE_DIR, load_movies
+
+MOVIE_EMBEDDINGS_PATH = os.path.join(CACHE_DIR, "movie_embeddings.npy")
 
 
 class SemanticSearch:
@@ -19,24 +22,28 @@ class SemanticSearch:
 
     def build_embeddings(self, documents):
         self.documents = documents
-        list_str_repr = []
-        for doc in self.documents:
+        self.document_map = {}
+        movie_strings = []
+        for doc in documents:
             self.document_map[doc["id"]] = doc
-            str_repr = f"{doc['title']}: {doc['description']}"
-            list_str_repr.append(str_repr)
-        self.embeddings = self.model.encode(list_str_repr, show_progress_bar=True)
-        np.save("cache/movie_embeddings.npy", self.embeddings)
+            movie_strings.append(f"{doc['title']}: {doc['description']}")
+        self.embeddings = self.model.encode(movie_strings, show_progress_bar=True)
+
+        os.makedirs(os.path.dirname(MOVIE_EMBEDDINGS_PATH), exist_ok=True)
+        np.save(MOVIE_EMBEDDINGS_PATH, self.embeddings)
         return self.embeddings
 
     def load_or_create_embeddings(self, documents):
         self.documents = documents
-        for doc in self.documents:
+        self.document_map = {}
+        for doc in documents:
             self.document_map[doc["id"]] = doc
 
-        if os.path.exists("cache/movie_embeddings.npy"):
-            self.embeddings = np.load("cache/movie_embeddings.npy")
+        if os.path.exists(MOVIE_EMBEDDINGS_PATH):
+            self.embeddings = np.load(MOVIE_EMBEDDINGS_PATH)
             if len(self.embeddings) == len(documents):
                 return self.embeddings
+
         return self.build_embeddings(documents)
 
 
@@ -62,3 +69,11 @@ def verify_embeddings():
     print(
         f"Embeddings shape: {embeddings.shape[0]} vectors in {embeddings.shape[1]} dimensions"
     )
+
+
+def embed_query_text(query):
+    search_instance = SemanticSearch()
+    embedding = search_instance.generate_embedding(query)
+    print(f"Query: {query}")
+    print(f"First 5 dimensions: {embedding[:5]}")
+    print(f"Shape: {embedding.shape}")
