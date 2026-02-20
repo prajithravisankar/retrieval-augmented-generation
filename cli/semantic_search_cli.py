@@ -25,10 +25,10 @@ def main() -> None:
         "verify_embeddings", help="Verify embeddings for the movie dataset"
     )
 
-    query_embed_parser = subparsers.add_parser(
-        "embedquery", help="generate query embeddings"
+    embed_query_parser = subparsers.add_parser(
+        "embedquery", help="Generate an embedding for a search query"
     )
-    query_embed_parser.add_argument("query", type=str, help="query to embed")
+    embed_query_parser.add_argument("query", type=str, help="Query to embed")
 
     args = parser.parse_args()
 
