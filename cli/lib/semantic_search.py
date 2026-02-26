@@ -5,7 +5,6 @@ from sentence_transformers import SentenceTransformer
 
 from .search_utils import (
     CACHE_DIR,
-    DEFAULT_CHUNK_SIZE,
     DEFAULT_SEARCH_LIMIT,
     load_movies,
 )
@@ -144,22 +143,19 @@ def semantic_search(query, limit=DEFAULT_SEARCH_LIMIT):
         print()
 
 
-def fixed_size_chunking(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> list[str]:
+def chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
+    if overlap >= chunk_size:
+        raise ValueError("overlap must be strictly less than chunk size")
     words = text.split()
     chunks = []
-
-    n_words = len(words)
     i = 0
-    while i < n_words:
-        chunk_words = words[i : i + chunk_size]
-        chunks.append(" ".join(chunk_words))
-        i += chunk_size
+    step = chunk_size - overlap
+    while i < len(words):
+        chunk_word = words[i : i + chunk_size]
+        chunks.append(" ".join(chunk_word))
 
-    return chunks
+        i += step
 
-
-def chunk_text(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE) -> None:
-    chunks = fixed_size_chunking(text, chunk_size)
     print(f"Chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
         print(f"{i + 1}. {chunk}")

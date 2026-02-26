@@ -47,6 +47,9 @@ def main() -> None:
     chunk_parser.add_argument(
         "--chunk-size", type=int, default=200, help="Size of each chunk in words"
     )
+    chunk_parser.add_argument(
+        "--overlap", type=int, help="overlaps words to share words to preserve context"
+    )
 
     args = parser.parse_args()
 
@@ -62,7 +65,7 @@ def main() -> None:
         case "search":
             semantic_search(args.query, args.limit)
         case "chunk":
-            chunk_text(args.text, args.chunk_size)
+            chunk_text(args.text, args.chunk_size, args.overlap)
         case _:
             parser.print_help()
 
