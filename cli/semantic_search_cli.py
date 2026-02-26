@@ -39,6 +39,18 @@ def main() -> None:
         "--limit", type=int, default=5, help="Number of results to return"
     )
 
+    chunk_parser = subparsers.add_parser(
+        "chunk",
+        help="fixed size chunking to split long text into smaller pieces for embeddings.",
+    )
+    chunk_parser.add_argument("text", help="text to chunk")
+    chunk_parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=200,
+        help="optional argument for chunk size defaults to 200 words",
+    )
+
     args = parser.parse_args()
 
     match args.command:
@@ -52,6 +64,15 @@ def main() -> None:
             embed_query_text(args.query)
         case "search":
             semantic_search(args.query, args.limit)
+        case "chunk":
+            words = args.text.split()
+            chunks = []
+            for i in range(0, len(words), args.chunk_size):
+                chunk_words = words[i : i + args.chunk_size]
+                chunks.append(" ".join(chunk_words))
+            print(f"Chunking {len(args.text)} characters")
+            for i, chunk in enumerate(chunks, 1):
+                print(f"{i}. {chunk}")
         case _:
             parser.print_help()
 
