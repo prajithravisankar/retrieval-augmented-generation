@@ -15,6 +15,7 @@ STOPWORDS_PATH = os.path.join(PROJECT_ROOT, "data", "stopwords.txt")
 CACHE_DIR = os.path.join(PROJECT_ROOT, "cache")
 
 DEFAULT_CHUNK_SIZE = 200
+DEFAULT_CHUNK_OVERLAP = 0
 
 
 def load_movies() -> list[dict]:
