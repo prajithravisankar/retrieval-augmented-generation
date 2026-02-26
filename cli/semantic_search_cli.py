@@ -56,13 +56,21 @@ def main() -> None:
     )
 
     semantic_chunk_parser = subparsers.add_parser(
-        "semantic_chunk", help="split text into semantic chunks"
+        "semantic_chunk", help="Split text on sentence boundaries to preserve meaning"
+    )
+    semantic_chunk_parser.add_argument("text", type=str, help="Text to chunk")
+    semantic_chunk_parser.add_argument(
+        "--max-chunk-size",
+        type=int,
+        default=4,
+        help="Maximum size of each chunk in sentences",
     )
     semantic_chunk_parser.add_argument(
-        "text", type=str, help="text to semantically chunk"
+        "--overlap",
+        type=int,
+        default=0,
+        help="Number of sentences to overlap between chunks",
     )
-    semantic_chunk_parser.add_argument("--max-chunk-size", type=int, default=4)
-    semantic_chunk_parser.add_argument("--overlap", type=int, default=0)
 
     args = parser.parse_args()
 
