@@ -3,6 +3,7 @@
 import argparse
 
 from lib.semantic_search import (
+    chunk_text,
     embed_query_text,
     embed_text,
     semantic_search,
@@ -40,15 +41,11 @@ def main() -> None:
     )
 
     chunk_parser = subparsers.add_parser(
-        "chunk",
-        help="fixed size chunking to split long text into smaller pieces for embeddings.",
+        "chunk", help="Split text into fixed-size chunks"
     )
-    chunk_parser.add_argument("text", help="text to chunk")
+    chunk_parser.add_argument("text", type=str, help="Text to chunk")
     chunk_parser.add_argument(
-        "--chunk-size",
-        type=int,
-        default=200,
-        help="optional argument for chunk size defaults to 200 words",
+        "--chunk-size", type=int, default=200, help="Size of each chunk in words"
     )
 
     args = parser.parse_args()
@@ -65,14 +62,7 @@ def main() -> None:
         case "search":
             semantic_search(args.query, args.limit)
         case "chunk":
-            words = args.text.split()
-            chunks = []
-            for i in range(0, len(words), args.chunk_size):
-                chunk_words = words[i : i + args.chunk_size]
-                chunks.append(" ".join(chunk_words))
-            print(f"Chunking {len(args.text)} characters")
-            for i, chunk in enumerate(chunks, 1):
-                print(f"{i}. {chunk}")
+            chunk_text(args.text, args.chunk_size)
         case _:
             parser.print_help()
 
