@@ -11,6 +11,7 @@ from .search_utils import (
     DEFAULT_CHUNK_SIZE,
     DEFAULT_SEARCH_LIMIT,
     DEFAULT_SEMANTIC_CHUNK_SIZE,
+    SCORE_PRECISION,
     load_movies,
 )
 
@@ -273,3 +274,45 @@ class ChunkedSemanticSearch(SemanticSearch):
             return self.chunk_embeddings
 
         return self.build_chunk_embeddings(documents)
+
+    def search_chunks(self, query: str, limit: int = 10):
+        query_embedding = self.generate_embedding(query)
+        chunk_score = []
+        for i, chunk_embedding in enumerate(self.chunk_embeddings):
+            similarity_score = cosine_similarity(query_embedding, chunk_embedding)
+            metadata = self.chunk_metadata[i]
+            chunk_score.append(
+                {
+                    "chunk_idx": metadata["chunk_idx"],
+                    "movie_idx": metadata["movie_idx"],
+                    "score": similarity_score,
+                }
+            )
+        movie_idx_to_score = {}
+        for score in chunk_score:
+            movie_idx = score["movie_idx"]
+            new_score = score["score"]
+            if (
+                movie_idx not in movie_idx_to_score
+                or movie_idx_to_score[movie_idx] < new_score
+            ):
+                movie_idx_to_score[movie_idx] = new_score
+
+        sorted_movie_scores = sorted(
+            movie_idx_to_score.items(), key=lambda x: x[1], reverse=True
+        )
+
+        limited_sorted_movie_scores = sorted_movie_scores[:limit]
+        final_results = []
+        for movie_idx, score in limited_sorted_movie_scores:
+            doc = self.documents[movie_idx]
+            final_results.append(
+                {
+                    "id": doc["id"],
+                    "title": doc["title"],
+                    "document": doc["description"][:100],
+                    "score": round(score, SCORE_PRECISION),
+                    "metadata": {},
+                }
+            )
+        return final_results
