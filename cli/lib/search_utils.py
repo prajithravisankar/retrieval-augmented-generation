@@ -3,6 +3,7 @@ import os
 from typing import Any
 
 DEFAULT_SEARCH_LIMIT = 5
+DOCUMENT_PREVIEW_LENGTH = 100
 SCORE_PRECISION = 3
 
 BM25_K1 = 1.5
