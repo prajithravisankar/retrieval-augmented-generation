@@ -1,39 +1,28 @@
 import argparse
 
+from lib.hybrid_search import normalize_scores
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Hybrid Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     normalize_parser = subparsers.add_parser(
-        "normalize", help="normalize a list of score"
+        "normalize", help="Normalize a list of scores"
     )
     normalize_parser.add_argument(
-        "scores", type=float, nargs="+", help="scores to normalize"
+        "scores", nargs="+", type=float, help="List of scores to normalize"
     )
 
     args = parser.parse_args()
 
     match args.command:
         case "normalize":
-            normalize_command(args.scores)
+            normalized = normalize_scores(args.scores)
+            for score in normalized:
+                print(f"* {score:.4f}")
         case _:
             parser.print_help()
-
-
-def normalize_command(scores):
-    if not scores:
-        return None
-    min_score = min(scores)
-    max_score = max(scores)
-    if min_score == max_score:
-        for _ in scores:
-            print(f"* {1.0:.4f}")
-        return
-
-    for score in scores:
-        normalized = (score - min_score) / (max_score - min_score)
-        print(f"* {normalized:.4f}")
 
 
 if __name__ == "__main__":
