@@ -1,8 +1,13 @@
 import os
 
-from lib.keyword_search import InvertedIndex
-from lib.search_utils import DEFAULT_SEARCH_LIMIT
-from lib.semantic_search import ChunkedSemanticSearch
+from .keyword_search import InvertedIndex
+from .search_utils import (
+    DEFAULT_ALPHA,
+    DEFAULT_SEARCH_LIMIT,
+    format_search_result,
+    load_movies,
+)
+from .semantic_search import ChunkedSemanticSearch
 
 
 class HybridSearch:
@@ -21,58 +26,11 @@ class HybridSearch:
         return self.idx.bm25_search(query, limit)
 
     def weighted_search(self, query: str, alpha: float, limit: int = 5) -> list[dict]:
-        keyword_results = self._bm25_search(query, limit * 500)
+        bm25_results = self._bm25_search(query, limit * 500)
         semantic_results = self.semantic_search.search_chunks(query, limit * 500)
 
-        raw_keyword_scores = [doc["score"] for doc in keyword_results]
-        raw_semantic_scores = [doc["score"] for doc in semantic_results]
-
-        normalized_keyword = (
-            normalize_scores(raw_keyword_scores) if raw_keyword_scores else []
-        )
-        normalized_semantic = (
-            normalize_scores(raw_semantic_scores) if raw_semantic_scores else []
-        )
-
-        master_tracker = {}
-
-        for doc, norm_score in zip(keyword_results, normalized_keyword):
-            doc_id = doc["id"]
-            master_tracker[doc_id] = {
-                "id": doc_id,
-                "title": doc["title"],
-                "document": doc["document"],
-                "keyword_score": norm_score,
-                "semantic_score": 0.0,  # Default fallback
-            }
-
-        for doc, norm_score in zip(semantic_results, normalized_semantic):
-            doc_id = doc["id"]
-            if doc_id in master_tracker:
-                master_tracker[doc_id]["semantic_score"] = norm_score
-            else:
-                master_tracker[doc_id] = {
-                    "id": doc_id,
-                    "title": doc["title"],
-                    "document": doc["document"],
-                    "keyword_score": 0.0,  # Default fallback
-                    "semantic_score": norm_score,
-                }
-
-        final_results = []
-        for data in master_tracker.values():
-            h_score = self.hybrid_score(
-                data["keyword_score"], data["semantic_score"], alpha
-            )
-            data["hybrid_score"] = h_score
-            final_results.append(data)
-
-        final_results.sort(key=lambda x: x["hybrid_score"], reverse=True)
-
-        return final_results[:limit]
-
-    def hybrid_score(self, bm25_score, semantic_score, alpha=0.5):
-        return alpha * bm25_score + (1 - alpha) * semantic_score
+        combined = combine_search_results(bm25_results, semantic_results, alpha)
+        return combined[:limit]
 
     def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
         raise NotImplementedError("RRF hybrid search is not implemented yet.")
@@ -95,12 +53,86 @@ def normalize_scores(scores: list[float]) -> list[float]:
     return normalized_scores
 
 
-if __name__ == "__main__":
-    from lib.search_utils import load_movies
+def normalize_search_results(results: list[dict]) -> list[dict]:
+    scores: list[float] = []
+    for result in results:
+        scores.append(result["score"])
 
-    print("loading movies...")
-    docs = load_movies()
-    print("initializing hybrid search...")
-    searcher = HybridSearch(docs)
-    print("running weighted search...")
-    searcher.weighted_search("some random query", 0.5)
+    normalized: list[float] = normalize_scores(scores)
+    for i, result in enumerate(results):
+        result["normalized_score"] = normalized[i]
+
+    return results
+
+
+def hybrid_score(
+    bm25_score: float, semantic_score: float, alpha: float = DEFAULT_ALPHA
+) -> float:
+    return alpha * bm25_score + (1 - alpha) * semantic_score
+
+
+def combine_search_results(
+    bm25_results: list[dict], semantic_results: list[dict], alpha: float = DEFAULT_ALPHA
+) -> list[dict]:
+    bm25_normalized = normalize_search_results(bm25_results)
+    semantic_normalized = normalize_search_results(semantic_results)
+
+    combined_scores = {}
+
+    for result in bm25_normalized:
+        doc_id = result["id"]
+        if doc_id not in combined_scores:
+            combined_scores[doc_id] = {
+                "title": result["title"],
+                "document": result["document"],
+                "bm25_score": 0.0,
+                "semantic_score": 0.0,
+            }
+        if result["normalized_score"] > combined_scores[doc_id]["bm25_score"]:
+            combined_scores[doc_id]["bm25_score"] = result["normalized_score"]
+
+    for result in semantic_normalized:
+        doc_id = result["id"]
+        if doc_id not in combined_scores:
+            combined_scores[doc_id] = {
+                "title": result["title"],
+                "document": result["document"],
+                "bm25_score": 0.0,
+                "semantic_score": 0.0,
+            }
+        if result["normalized_score"] > combined_scores[doc_id]["semantic_score"]:
+            combined_scores[doc_id]["semantic_score"] = result["normalized_score"]
+
+    hybrid_results = []
+    for doc_id, data in combined_scores.items():
+        score_value = hybrid_score(data["bm25_score"], data["semantic_score"], alpha)
+        result = format_search_result(
+            doc_id=doc_id,
+            title=data["title"],
+            document=data["document"],
+            score=score_value,
+            bm25_score=data["bm25_score"],
+            semantic_score=data["semantic_score"],
+        )
+        hybrid_results.append(result)
+
+    return sorted(hybrid_results, key=lambda x: x["score"], reverse=True)
+
+
+def weighted_search_command(
+    query: str, alpha: float = DEFAULT_ALPHA, limit: int = DEFAULT_SEARCH_LIMIT
+) -> dict:
+    movies = load_movies()
+    searcher = HybridSearch(movies)
+
+    original_query = query
+
+    search_limit = limit
+    results = searcher.weighted_search(query, alpha, search_limit)
+
+    return {
+        "original_query": original_query,
+        "query": query,
+        "alpha": alpha,
+        "results": results,
+    }
