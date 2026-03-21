@@ -3,6 +3,7 @@ import os
 from typing import Any
 
 DEFAULT_ALPHA = 0.5
+RRF_K = 60
 
 DEFAULT_SEARCH_LIMIT = 5
 DOCUMENT_PREVIEW_LENGTH = 100
