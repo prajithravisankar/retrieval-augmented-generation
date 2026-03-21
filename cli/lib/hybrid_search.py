@@ -33,7 +33,56 @@ class HybridSearch:
         return combined[:limit]
 
     def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
-        raise NotImplementedError("RRF hybrid search is not implemented yet.")
+        bm25_results = self._bm25_search(query, limit * 500)
+        semantic_results = self.semantic_search.search_chunks(query, limit * 500)
+        combined = combine_search_results_reciprocal_rank_fusion(
+            bm25_results, semantic_results, k
+        )
+        combined_list = list(combined)
+        combined_list.sort(key=lambda x: x["rrf_score"], reverse=True)
+        return combined_list[:limit]
+
+
+def combine_search_results_reciprocal_rank_fusion(bm25_results, semantic_results, k):
+    combined_ranks = {}
+    for i, doc in enumerate(bm25_results, 1):
+        combined_ranks[doc["id"]] = {
+            "title": doc["title"],
+            "document": doc["document"],
+            "bm25_rank": i,
+            "semantic_rank": 0,
+        }
+
+    for i, doc in enumerate(semantic_results, 1):
+        if doc["id"] in combined_ranks:
+            combined_ranks[doc["id"]].update({"semantic_rank": i})
+        else:
+            combined_ranks[doc["id"]] = {
+                "title": doc["title"],
+                "document": doc["document"],
+                "bm25_rank": 0,
+                "semantic_rank": i,
+            }
+
+    for doc in combined_ranks.values():
+        bm25_rrf_score = 0
+        semantic_rrf_score = 0
+        if doc["bm25_rank"] != 0 and doc["semantic_rank"] != 0:
+            bm25_rrf_score = rrf_score(doc["bm25_rank"], k)
+            semantic_rrf_score = rrf_score(doc["semantic_rank"], k)
+        elif doc["bm25_rank"] != 0 and doc["semantic_rank"] == 0:
+            bm25_rrf_score = rrf_score(doc["bm25_rank"], k)
+        else:
+            semantic_rrf_score = rrf_score(doc["semantic_rank"], k)
+
+        final_rrf_score = bm25_rrf_score + semantic_rrf_score
+        doc.update({"rrf_score": final_rrf_score})
+
+    return combined_ranks.values()
+
+
+def rrf_score(rank, k=60):
+    return 1 / (k + rank)
 
 
 def normalize_scores(scores: list[float]) -> list[float]:
