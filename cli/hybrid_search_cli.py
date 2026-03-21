@@ -29,6 +29,18 @@ def main() -> None:
         "--limit", type=int, default=5, help="Number of results to return"
     )
 
+    # --- RRF Search Command ---
+    rrf_search_parser = subparsers.add_parser(
+        "rrf-search", help="Search for movies using Reciprocal Rank Fusion"
+    )
+    rrf_search_parser.add_argument("query", type=str, help="Search query")
+    rrf_search_parser.add_argument(
+        "-k", type=int, default=60, help="k constant for RRF calculation"
+    )
+    rrf_search_parser.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return"
+    )
+
     args = parser.parse_args()
 
     match args.command:
@@ -45,6 +57,22 @@ def main() -> None:
                     f"   BM25: {res['keyword_score']:.3f}, Semantic: {res['semantic_score']:.3f}"
                 )
                 print(f"   {res['document']}")
+                print()  # Empty line between results
+
+        case "rrf-search":
+            docs = load_movies()
+            searcher = HybridSearch(docs)
+
+            results = searcher.rrf_search(args.query, args.k, args.limit)
+
+            for i, res in enumerate(results, 1):
+                print(f"{i}. {res['title']}")
+                print(f"   RRF Score: {res['rrf_score']:.3f}")
+                print(
+                    f"   BM25 Rank: {res['bm25_rank']}, Semantic Rank: {res['semantic_rank']}"
+                )
+                print(f"   {res['document']}")
+                print()  # Empty line between results
 
         case "normalize":
             normalized = normalize_scores(args.scores)
