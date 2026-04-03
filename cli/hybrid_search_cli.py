@@ -1,8 +1,5 @@
 import argparse
-import os
 
-from dotenv import load_dotenv
-from google import genai
 from lib.hybrid_search import (
     normalize_scores,
     rrf_search_command,
@@ -46,14 +43,15 @@ def main() -> None:
         help="RRF k parameter controlling weight distribution (default=60)",
     )
     rrf_parser.add_argument(
-        "--limit", type=int, default=5, help="Number of results to return (default=5)"
-    )
-    rrf_parser.add_argument(
         "--enhance",
         type=str,
         choices=["spell"],
         help="Query enhancement method",
     )
+    rrf_parser.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return (default=5)"
+    )
+
     args = parser.parse_args()
 
     match args.command:
@@ -81,28 +79,12 @@ def main() -> None:
                 print(f"   {res['document'][:100]}...")
                 print()
         case "rrf-search":
-            if args.enhance == "spell":
-                load_dotenv()
-                api_key = os.environ.get("GEMINI_API_KEY")
+            result = rrf_search_command(args.query, args.k, args.enhance, args.limit)
 
-                client = genai.Client(api_key=api_key)
-                query = args.query
-                response = client.models.generate_content(
-                    model="gemma-3-27b-it",
-                    contents=f"""Fix any spelling errors in the user-provided movie search query below.
-                    Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
-                    Preserve punctuation and capitalization unless a change is required for a typo fix.
-                    If there are no spelling errors, or if you're unsure, output the original query unchanged.
-                    Output only the final query text, nothing else.
-                    User query: "{query}"
-                    """,
+            if result["enhanced_query"]:
+                print(
+                    f"Enhanced query ({result['enhance_method']}): '{result['original_query']}' -> '{result['enhanced_query']}'\n"
                 )
-                ENHANCED_QUERY = response.text
-                METHOD = "spell"
-                print(f"Enhanced query ({METHOD}): '{query}' -> '{ENHANCED_QUERY}'\n")
-                result = rrf_search_command(ENHANCED_QUERY, args.k, args.limit)
-            else:
-                result = rrf_search_command(args.query, args.k, args.limit)
 
             print(
                 f"Reciprocal Rank Fusion Results for '{result['query']}' (k={result['k']}):"
