@@ -67,9 +67,10 @@ def expand_query(query: str) -> str:
 
     User query: "{query}"
     """
+
     response = client.models.generate_content(model=model, contents=prompt)
-    rewritten = (response.text or "").strip().strip('"')
-    return rewritten if rewritten else query
+    expanded_terms = (response.text or "").strip().strip('"')
+    return f"{query} {expanded_terms}".strip()
 
 
 def enhance_query(query: str, method: Optional[str] = None) -> str:
@@ -78,5 +79,7 @@ def enhance_query(query: str, method: Optional[str] = None) -> str:
             return spell_correct(query)
         case "rewrite":
             return rewrite_query(query)
+        case "expand":
+            return expand_query(query)
         case _:
             return query
