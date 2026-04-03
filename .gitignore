@@ -14,3 +14,5 @@ wheels/
 cache/
 docmap.pkl
 index.pkl
+.env
+test_gemini.py
