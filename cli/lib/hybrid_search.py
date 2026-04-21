@@ -1,5 +1,9 @@
 import os
+import time
 from typing import Optional
+
+from dotenv import load_dotenv
+from google import genai
 
 from .keyword_search import InvertedIndex
 from .query_enhancement import enhance_query
@@ -35,11 +39,45 @@ class HybridSearch:
         combined = combine_search_results(bm25_results, semantic_results, alpha)
         return combined[:limit]
 
-    def rrf_search(self, query: str, k: int, limit: int = 10) -> list[dict]:
+    def rrf_search(
+        self, query: str, k: int, rerank_method: Optional[str], limit: int = 10
+    ) -> list[dict]:
         bm25_results = self._bm25_search(query, limit * 500)
         semantic_results = self.semantic_search.search_chunks(query, limit * 500)
 
         fused = reciprocal_rank_fusion(bm25_results, semantic_results, k)
+        if rerank_method == "individual":
+            llm_shortlist = fused[: limit * 5]
+            load_dotenv()
+            api_key = os.environ.get("GEMINI_API_KEY")
+            if not api_key:
+                raise RuntimeError("GEMINI_API_KEY environment variable not set")
+            client = genai.Client(api_key=api_key)
+            for doc in llm_shortlist:
+                response = client.models.generate_content(
+                    model="gemma-3-27b-it",
+                    contents=f"""
+                        Rate how well this movie matches the search query.
+
+                        Query: "{query}"
+                        Movie: {doc.get("title", "")} - {doc.get("document", "")}
+
+                        Consider:
+                        - Direct relevance to query
+                        - User intent (what they're looking for)
+                        - Content appropriateness
+
+                        Rate 0-10 (10 = perfect match).
+                        Output ONLY the number in your response, no other text or explanation.
+
+                        Score:
+                    """,
+                )
+                doc["rerank_score"] = float(response.text)
+                time.sleep(3)
+            llm_shortlist.sort(key=lambda x: x.get("rerank_score", 0), reverse=True)
+            return llm_shortlist[:limit]
+
         return fused[:limit]
 
 
@@ -205,6 +243,7 @@ def rrf_search_command(
     query: str,
     k: int = RRF_K,
     enhance: Optional[str] = None,
+    rerank_method: Optional[str] = None,
     limit: int = DEFAULT_SEARCH_LIMIT,
 ) -> dict:
     movies = load_movies()
@@ -217,7 +256,7 @@ def rrf_search_command(
         query = enhanced_query
 
     search_limit = limit
-    results = searcher.rrf_search(query, k, search_limit)
+    results = searcher.rrf_search(query, k, rerank_method, search_limit)
 
     return {
         "original_query": original_query,
