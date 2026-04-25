@@ -45,16 +45,17 @@ def main() -> None:
     rrf_parser.add_argument(
         "--enhance",
         type=str,
-        choices=["spell", "rewrite", "expand"],
+        choices=["spell", "expand", "rewrite"],
         help="Query enhancement method",
-    )
-    rrf_parser.add_argument(
-        "--limit", type=int, default=5, help="Number of results to return (default=5)"
     )
     rrf_parser.add_argument(
         "--rerank-method",
         type=str,
-        help="optional string it can either by individual or not provided at all, makes rrf supply 5x as many results as limits to the llm for re-ranking",
+        choices=["individual"],
+        help="Re-ranking method",
+    )
+    rrf_parser.add_argument(
+        "--limit", type=int, default=5, help="Number of results to return (default=5)"
     )
 
     args = parser.parse_args()
@@ -64,7 +65,6 @@ def main() -> None:
             normalized = normalize_scores(args.scores)
             for score in normalized:
                 print(f"* {score:.4f}")
-
         case "weighted-search":
             result = weighted_search_command(args.query, args.alpha, args.limit)
 
@@ -84,7 +84,6 @@ def main() -> None:
                     )
                 print(f"   {res['document'][:100]}...")
                 print()
-
         case "rrf-search":
             result = rrf_search_command(
                 args.query, args.k, args.enhance, args.rerank_method, args.limit
@@ -95,9 +94,10 @@ def main() -> None:
                     f"Enhanced query ({result['enhance_method']}): '{result['original_query']}' -> '{result['enhanced_query']}'\n"
                 )
 
-            # --- THE NEW RE-RANKING HEADER ---
-            if args.rerank_method == "individual":
-                print(f"Re-ranking top {args.limit} results using individual method...")
+            if result["reranked"]:
+                print(
+                    f"Re-ranking top {len(result['results'])} results using {result['rerank_method']} method...\n"
+                )
 
             print(
                 f"Reciprocal Rank Fusion Results for '{result['query']}' (k={result['k']}):"
@@ -105,11 +105,10 @@ def main() -> None:
 
             for i, res in enumerate(result["results"], 1):
                 print(f"{i}. {res['title']}")
-
-                # --- THE NEW LLM SCORE OUTPUT ---
-                if "rerank_score" in res:
-                    print(f"   Re-rank Score: {res['rerank_score']:.3f}/10")
-
+                if "individual_score" in res:
+                    print(f"   Re-rank Score: {res.get('individual_score', 0):.3f}/10")
+                if "batch_rank" in res:
+                    print(f"   Re-rank Rank: {res.get('batch_rank', 0)}")
                 print(f"   RRF Score: {res.get('score', 0):.3f}")
                 metadata = res.get("metadata", {})
                 ranks = []
@@ -121,7 +120,6 @@ def main() -> None:
                     print(f"   {', '.join(ranks)}")
                 print(f"   {res['document'][:100]}...")
                 print()
-
         case _:
             parser.print_help()
 
