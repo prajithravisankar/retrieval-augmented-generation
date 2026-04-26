@@ -46,9 +46,19 @@ def llm_rerank_individual(
 
 
 def llm_rerank_batch(query: str, documents: list[dict], limit: int = 5) -> list[dict]:
-    doc_list_str = ""
+    if not documents:
+        return []
+
+    doc_map = {}
+    doc_list = []
     for doc in documents:
-        doc_list_str += f"\nID: {doc.get('id')} - Title: {doc.get('title', '')} - {doc.get('document', '')}"
+        doc_id = doc["id"]
+        doc_map[doc_id] = doc
+        doc_list.append(
+            f"{doc_id}: {doc.get('title', '')} - {doc.get('document', '')[:200]}"
+        )
+
+    doc_list_str = "\n".join(doc_list)
 
     prompt = f"""Rank the movies listed below by relevance to the following search query.
 
@@ -65,36 +75,16 @@ def llm_rerank_batch(query: str, documents: list[dict], limit: int = 5) -> list[
     Ranking:"""
 
     response = client.models.generate_content(model=model, contents=prompt)
-    response_text = (response.text or "").strip()
+    ranking_text = (response.text or "").strip()
 
-    # --- THE NEW CLEANUP CODE ---
-    # Strip markdown code blocks if the LLM added them
-    if response_text.startswith("```json"):
-        response_text = response_text[7:]
-    if response_text.startswith("```"):
-        response_text = response_text[3:]
-    if response_text.endswith("```"):
-        response_text = response_text[:-3]
+    parsed_ids = json.loads(ranking_text)
 
-    response_text = response_text.strip()
+    reranked = []
+    for i, doc_id in enumerate(parsed_ids):
+        if doc_id in doc_map:
+            reranked.append({**doc_map[doc_id], "batch_rank": i + 1})
 
-    # Safely try to load the JSON, fallback to original order if it fails
-    try:
-        ranked_ids = json.loads(response_text)
-    except json.JSONDecodeError:
-        print(f"Failed to parse JSON. Raw response: {response_text}")
-        return documents[:limit]
-    # -----------------------------
-
-    rank_map = {doc_id: rank for rank, doc_id in enumerate(ranked_ids, start=1)}
-    ranked_docs = []
-    for doc in documents:
-        doc_id = doc["id"]
-        if doc_id in rank_map:
-            ranked_docs.append({**doc, "batch_rank": rank_map[doc_id]})
-
-    ranked_docs.sort(key=lambda x: x.get("batch_rank", 999))
-    return ranked_docs[:limit]
+    return reranked[:limit]
 
 
 def rerank(
@@ -102,7 +92,7 @@ def rerank(
 ) -> list[dict]:
     if method == "individual":
         return llm_rerank_individual(query, documents, limit)
-    elif method == "batch":
+    if method == "batch":
         return llm_rerank_batch(query, documents, limit)
     else:
         return documents[:limit]
