@@ -4,7 +4,6 @@ from time import sleep
 
 from dotenv import load_dotenv
 from google import genai
-
 from sentence_transformers import CrossEncoder
 
 load_dotenv()
@@ -14,6 +13,7 @@ if not api_key:
 
 client = genai.Client(api_key=api_key)
 model = "gemma-3-27b-it"
+cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
 
 
 def llm_rerank_individual(
@@ -89,19 +89,20 @@ def llm_rerank_batch(query: str, documents: list[dict], limit: int = 5) -> list[
     return reranked[:limit]
 
 
-def cross_encoder_result(query: str, documents: list[dict], limit: int = 5):
+def cross_encoder_rerank(
+    query: str, documents: list[dict], limit: int = 5
+) -> list[dict]:
     pairs = []
-    cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
     for doc in documents:
         pairs.append([query, f"{doc.get('title', '')} - {doc.get('document', '')}"])
+
     scores = cross_encoder.predict(pairs)
-    encoder_doc_score = []
-    for i in range(len(documents)):
-        encoder_doc_score.append(
-            {**documents[i], "cross_encoder_score": float(scores[i])}
-        )
-    encoder_doc_score.sort(key=lambda x: x["cross_encoder_score"], reverse=True)
-    return encoder_doc_score[:limit]
+
+    for doc, score in zip(documents, scores):
+        doc["crossencoder_score"] = float(score)
+
+    documents.sort(key=lambda x: x["crossencoder_score"], reverse=True)
+    return documents[:limit]
 
 
 def rerank(
@@ -112,6 +113,6 @@ def rerank(
     if method == "batch":
         return llm_rerank_batch(query, documents, limit)
     if method == "cross_encoder":
-        return cross_encoder_result(query, documents, limit)
+        return cross_encoder_rerank(query, documents, limit)
     else:
         return documents[:limit]
