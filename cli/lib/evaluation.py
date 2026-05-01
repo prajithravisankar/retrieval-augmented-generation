@@ -64,7 +64,7 @@ def evaluate_command(limit: int = 5) -> dict:
         results_by_query[query] = {
             "precision": precision,
             "recall": recall,
-            "f1": f1,
+            "f1_score": f1,
             "retrieved": retrieved_docs[:limit],
             "relevant": list(relevant_docs),
         }
