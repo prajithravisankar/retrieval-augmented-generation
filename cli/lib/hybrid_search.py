@@ -208,6 +208,7 @@ def rrf_search_command(
     k: int = RRF_K,
     enhance: Optional[str] = None,
     rerank_method: Optional[str] = None,
+    evaluate: Optional[bool] = None,
     limit: int = DEFAULT_SEARCH_LIMIT,
 ) -> dict:
     movies = load_movies()
@@ -226,6 +227,59 @@ def rrf_search_command(
     if rerank_method:
         results = rerank(query, results, method=rerank_method, limit=limit)
         reranked = True
+
+    if evaluate:
+        from google import genai
+        import json
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        client = genai.Client(api_key=api_key)
+
+        # Build the list of formatted strings for the prompt
+        formatted_results = []
+        for doc in results:
+            formatted_results.append(
+                f"{doc.get('title', '')} - {doc.get('document', '')}"
+            )
+
+        prompt = f"""Rate how relevant each result is to this query on a 0-3 scale:
+
+        Query: "{query}"
+
+        Results:
+        {chr(10).join(formatted_results)}
+
+        Scale:
+        - 3: Highly relevant
+        - 2: Relevant
+        - 1: Marginally relevant
+        - 0: Not relevant
+
+        Do NOT give any numbers other than 0, 1, 2, or 3.
+
+        Return ONLY the scores in the same order you were given the documents. Return a valid JSON list, nothing else. For example:
+
+        [2, 0, 3, 2, 0, 1]"""
+
+        response = client.models.generate_content(
+            model="gemma-3-27b-it", contents=prompt
+        )
+
+        response_text = (response.text or "").strip()
+        if response_text.startswith("```"):
+            response_text = (
+                response_text.split("\n", 1)[1]
+                if "\n" in response_text
+                else response_text
+            )
+            response_text = response_text.rsplit("```", 1)[0].strip()
+        try:
+            scores = json.loads(response_text)
+            for i, doc in enumerate(results):
+                if i < len(scores):
+                    doc["llm_evaluation_score"] = scores[i]
+        except json.JSONDecodeError:
+            print("Failed to parse evaluation scores.")
 
     return {
         "original_query": original_query,
