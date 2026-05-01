@@ -17,12 +17,15 @@ def precision_at_k(
     return relevant_count / k
 
 
-def recall_at_k(retrieved_docs: list[str], relevant_docs: set[str]) -> float:
-    relevant_retrieved = 0
-    for doc in retrieved_docs:
+def recall_at_k(
+    retrieved_docs: list[str], relevant_docs: set[str], k: int = 5
+) -> float:
+    top_k = retrieved_docs[:k]
+    relevant_count = 0
+    for doc in top_k:
         if doc in relevant_docs:
-            relevant_retrieved += 1
-    return relevant_retrieved / len(relevant_docs)
+            relevant_count += 1
+    return relevant_count / len(relevant_docs)
 
 
 def evaluate_command(limit: int = 5) -> dict:
@@ -47,7 +50,7 @@ def evaluate_command(limit: int = 5) -> dict:
                 retrieved_docs.append(title)
 
         precision = precision_at_k(retrieved_docs, relevant_docs, limit)
-        recall = recall_at_k(retrieved_docs, relevant_docs)
+        recall = recall_at_k(retrieved_docs, relevant_docs, limit)
 
         results_by_query[query] = {
             "precision": precision,
