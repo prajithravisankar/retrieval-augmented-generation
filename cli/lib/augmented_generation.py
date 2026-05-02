@@ -41,11 +41,10 @@ def generate_answer(search_results, query, limit=5):
     return (response.text or "").strip()
 
 
-def generate_summary(search_results, query, limit):
-    context = ""
-
-    for result in search_results[:limit]:
-        context += f"{result['title']}: {result['document']}\n\n"
+def multi_document_summary(search_results, query, limit=5):
+    docs_text = ""
+    for i, result in enumerate(search_results[:limit], start=1):
+        docs_text += f"Document {i}: {result['title']}; {result['document']}\n\n"
 
     prompt = f"""Provide information useful to the query below by synthesizing data from multiple search results in detail.
 
@@ -57,7 +56,7 @@ def generate_summary(search_results, query, limit):
     Query: {query}
 
     Search results:
-    {context}
+    {docs_text}
 
     Provide a comprehensive 3–4 sentence answer that combines information from multiple sources:"""
 
@@ -65,7 +64,7 @@ def generate_summary(search_results, query, limit):
     return (response.text or "").strip()
 
 
-def rag(query, summarize: bool = False, limit=DEFAULT_SEARCH_LIMIT):
+def rag(query, limit=DEFAULT_SEARCH_LIMIT):
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
 
@@ -80,20 +79,12 @@ def rag(query, summarize: bool = False, limit=DEFAULT_SEARCH_LIMIT):
             "error": "No results found",
         }
 
-    if summarize:
-        llm_summary = generate_summary(search_results, query, limit)
-        return {
-            "query": query,
-            "search_results": search_results[:limit],
-            "answer": "",
-            "llm_summary": llm_summary,
-        }
+    answer = generate_answer(search_results, query, limit)
 
     return {
         "query": query,
         "search_results": search_results[:limit],
-        "answer": generate_answer(search_results, query, limit),
-        "llm_summary": "",
+        "answer": answer,
     }
 
 
@@ -101,5 +92,21 @@ def rag_command(query):
     return rag(query)
 
 
-def summarize(query, limit=5):
-    return rag(query=query, summarize=True, limit=limit)
+def summarize_command(query, limit=5):
+    movies = load_movies()
+    hybrid_search = HybridSearch(movies)
+
+    search_results = hybrid_search.rrf_search(
+        query, k=RRF_K, limit=limit * SEARCH_MULTIPLIER
+    )
+
+    if not search_results:
+        return {"query": query, "error": "No results found"}
+
+    summary = multi_document_summary(search_results, query, limit)
+
+    return {
+        "query": query,
+        "summary": summary,
+        "search_results": search_results[:limit],
+    }
