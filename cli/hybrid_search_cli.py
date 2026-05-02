@@ -1,5 +1,6 @@
 import argparse
 
+from lib.evaluation import llm_judge_results
 from lib.hybrid_search import (
     normalize_scores,
     rrf_search_command,
@@ -58,9 +59,7 @@ def main() -> None:
         "--limit", type=int, default=5, help="Number of results to return (default=5)"
     )
     rrf_parser.add_argument(
-        "--evaluate",
-        action="store_true",
-        help="Rate the search results using an LLM as a judge",
+        "--evaluate", action="store_true", help="Use LLM to evaluate result relevance"
     )
 
     args = parser.parse_args()
@@ -91,12 +90,7 @@ def main() -> None:
                 print()
         case "rrf-search":
             result = rrf_search_command(
-                args.query,
-                args.k,
-                args.enhance,
-                args.rerank_method,
-                args.evaluate,
-                args.limit,
+                args.query, args.k, args.enhance, args.rerank_method, args.limit
             )
 
             if result["enhanced_query"]:
@@ -136,11 +130,12 @@ def main() -> None:
                 print()
 
             if args.evaluate:
-                print("LLM Evaluation:")
-                for i, res in enumerate(result["results"], 1):
-                    score = res.get("llm_evaluation_score", "N/A")
-                    print(f"{i}. {res['title']}: {score}/3")
+                print("LLM Evaluation (0-3 relevance scale):")
 
+                llm_scores = llm_judge_results(args.query, result["results"])
+
+                for i, (res, score) in enumerate(zip(result["results"], llm_scores), 1):
+                    print(f"{i}. {res['title']}: {score}/3")
         case _:
             parser.print_help()
 
