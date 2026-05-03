@@ -64,6 +64,33 @@ def multi_document_summary(search_results, query, limit=5):
     return (response.text or "").strip()
 
 
+def generate_citations(search_results, query, limit=5):
+    docs_text = ""
+    for i, result in enumerate(search_results[:limit], start=1):
+        docs_text += f"Document {i}: {result['title']}; {result['document']}\n\n"
+
+    prompt = f"""Answer the query below and give information based on the provided documents.
+
+    The answer should be tailored to users of Hoopla, a movie streaming service.
+    If not enough information is available to provide a good answer, say so, but give the best answer possible while citing the sources available.
+
+    Query: {query}
+
+    Documents:
+    {docs_text}
+
+    Instructions:
+    - Provide a comprehensive answer that addresses the query
+    - Cite sources in the format [1], [2], etc. when referencing information
+    - If sources disagree, mention the different viewpoints
+    - If the answer isn't in the provided documents, say "I don't have enough information"
+    - Be direct and informative
+
+    Answer:"""
+    response = client.models.generate_content(model=model, contents=prompt)
+    return (response.text or "").strip()
+
+
 def rag(query, limit=DEFAULT_SEARCH_LIMIT):
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
@@ -109,4 +136,21 @@ def summarize_command(query, limit=5):
         "query": query,
         "summary": summary,
         "search_results": search_results[:limit],
+    }
+
+
+def citation_command(query, limit=5):
+    movies = load_movies()
+    hybrid_search = HybridSearch(movies)
+
+    search_results = hybrid_search.rrf_search(
+        query, k=RRF_K, limit=limit * SEARCH_MULTIPLIER
+    )
+    if not search_results:
+        return {"query": query, "error": "No results found"}
+    citations = generate_citations(search_results, query, limit)
+    return {
+        "query": query,
+        "search_results": search_results[:limit],
+        "citations": citations,
     }
