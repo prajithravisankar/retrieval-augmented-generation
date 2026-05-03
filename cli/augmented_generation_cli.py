@@ -2,9 +2,9 @@ import argparse
 
 from lib.augmented_generation import (
     citations_command,
+    question_command,
     rag_command,
     summarize_command,
-    question_command,
 )
 
 
@@ -41,11 +41,9 @@ def main():
     )
 
     question_parser = subparsers.add_parser(
-        "question", help="answer user question using rag"
+        "question", help="Answer a question directly and concisely"
     )
-    question_parser.add_argument(
-        "question", type=str, help="Search query for answer generation"
-    )
+    question_parser.add_argument("question", type=str, help="Question to answer")
     question_parser.add_argument(
         "--limit", type=int, default=5, help="Maximum number of documents to use"
     )
@@ -83,8 +81,7 @@ def main():
             for document in result["search_results"]:
                 print(f"  - {document['title']}")
             print()
-            print("Answer:")
-            print(result["answer"])
+            print(f"Answer: {result['answer']}")
         case _:
             parser.print_help()
 
