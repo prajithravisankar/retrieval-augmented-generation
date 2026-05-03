@@ -2,7 +2,7 @@
 
 import argparse
 
-from lib.multimodal_search import verify_image_embedding, image_search_command
+from lib.multimodal_search import image_search_command, verify_image_embedding
 
 
 def main() -> None:
@@ -14,10 +14,10 @@ def main() -> None:
     )
     verif_parser.add_argument("image", type=str, help="Path to image file")
 
-    image_search_parser = subparsers.add_parser(
-        "image_search", help="multimodal search with image"
+    search_parser = subparsers.add_parser(
+        "image_search", help="Search documents using an image"
     )
-    image_search_parser.add_argument("image", help="path to image file")
+    search_parser.add_argument("image", type=str, help="Path to image file")
 
     args = parser.parse_args()
 
@@ -25,13 +25,14 @@ def main() -> None:
         case "verify_image_embedding":
             verify_image_embedding(args.image)
         case "image_search":
-            results = image_search_command(args.image)
-            for i, r in enumerate(results, start=1):
-                desc = r["description"][:100] + (
-                    "..." if len(r["description"]) > 100 else ""
-                )
-                print(f"{i}. {r['title']} (similarity: {r['similarity']:.3f})")
-                print(f"   {desc}")
+            result = image_search_command(args.image)
+
+            print(f"Image search results for: {result['image_path']}")
+            print("=" * 60)
+
+            for i, res in enumerate(result["results"], 1):
+                print(f"{i}. {res['title']} (similarity: {res['score']:.3f})")
+                print(f"   {res['document'][:100]}...")
                 print()
         case _:
             parser.print_help()
